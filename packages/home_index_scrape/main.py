@@ -32,7 +32,7 @@ import time
 tika.TikaClientOnly = True
 
 from tika import config
-from ..run_server import run_server
+from home_index_module import run_server
 from functools import cmp_to_key
 from pathlib import Path
 from requests.exceptions import RequestException, ReadTimeout

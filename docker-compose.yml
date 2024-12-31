@@ -7,11 +7,11 @@ networks:
         - subnet: 172.34.0.0/24
 
 services:
-  home-index-scrape-module:
+  home-index-scrape:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: home-index-scrape-module
+    container_name: home-index-scrape
     environment:
       - TIKA_HOST=http://tika:9998
       - TZ=America/Los_Angeles
@@ -20,7 +20,6 @@ services:
       - '5678:5678' # debugpy
     restart: unless-stopped
     volumes:
-      - ./bind-mounts/home-index:/storage
       - /home/ns/shared:/files
     networks:
       debug-net:
@@ -45,7 +44,7 @@ services:
       - meilisearch
       - home-index-transcribe-module
     environment:
-      - MODULES=http://home-index-scrape-module:9000
+      - MODULES=http://home-index-scrape:9000
       - MEILISEARCH_HOST=http://meilisearch:7700
       - TZ=America/Los_Angeles
     restart: unless-stopped
@@ -55,7 +54,7 @@ services:
     networks:
       - debug-net
   tika:
-    command: ["--config", "/config/tika-config.xml"]
+    command: [ "--config", "/config/tika-config.xml" ]
     container_name: tika
     environment:
       - TZ=America/Los_Angeles

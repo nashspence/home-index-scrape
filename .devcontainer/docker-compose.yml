@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile.devcontainer
     command: ["/bin/sh"]
-    container_name: home-index-devcontainer
+    container_name: home-index-scrape-devcontainer
     deploy:
       resources:
         reservations:
@@ -12,7 +12,7 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-    hostname: home-index-devcontainer
+    hostname: home-index-scrape-devcontainer
     privileged: true
     stdin_open: true
     tty: true

@@ -1,5 +1,5 @@
 {
-	"name": "home-index",
+	"name": "home-index-scrape",
 	"dockerComposeFile": "./docker-compose.yml",
 	"service": "devcontainer",
 	"postStartCommand": "poststart.sh",

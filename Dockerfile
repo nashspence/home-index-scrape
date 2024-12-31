@@ -20,5 +20,5 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-COPY src .
+COPY packages/home_index_scrape .
 ENTRYPOINT ["python3", "/app/main.py"]
