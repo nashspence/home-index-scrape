@@ -22,8 +22,6 @@ services:
     restart: unless-stopped
     volumes:
       - ./bind-mounts/meilisearch:/meili_data
-    networks:
-      - debug-net
   home-index:
     build:
       context: https://github.com/nashspence/home-index.git
