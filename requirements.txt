@@ -1,4 +1,6 @@
-apscheduler
+git+https://github.com/nashspence/home-index.git
 debugpy
-meilisearch-python-sdk
-xxhash
+ffmpeg-python
+jmespath
+pyexiftool
+tika

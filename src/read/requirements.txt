@@ -1,9 +1,0 @@
-git+https://github.com/nashspence/home-index.git
-debugpy
-easyocr
-numpy
-pdf2image
-pillow
-python-magic
-rawpy
-wand
