@@ -27,4 +27,3 @@ services:
       - ../:/workspace
       - ../docker-data:/var/lib/docker
       - ~/.ssh:/tmp/.ssh:ro
-      - /home/ns/shared:/mnt/shared:ro
