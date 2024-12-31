@@ -45,5 +45,5 @@ jobs:
           push: true
           # Tag the image with both the version and "latest"
           tags: |
-            ${{ secrets.DOCKER_USERNAME }}/home-index:${{ steps.version.outputs.version }}
-            ${{ secrets.DOCKER_USERNAME }}/home-index:latest
+            ${{ secrets.DOCKER_USERNAME }}/home-index-scrape:${{ steps.version.outputs.version }}
+            ${{ secrets.DOCKER_USERNAME }}/home-index-scrape:latest
