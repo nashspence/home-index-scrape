@@ -2007,7 +2007,7 @@ def check(file_path, document, metadata_dir_path):
             version = json.load(file)
     if (
         version
-        and version.get("file_path") == file_path
+        and version.get("file_path") == str(file_path)
         and version.get("version") == VERSION
     ):
         return False
