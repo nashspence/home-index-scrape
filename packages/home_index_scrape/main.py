@@ -6,7 +6,7 @@ import debugpy
 
 debugpy.listen(("0.0.0.0", 5678))
 
-if str(os.environ.get("WAIT_FOR_DEBUG_CLIENT", "false")).lower() == "true":
+if str(os.environ.get("WAIT_FOR_DEBUGPY_CLIENT", "False")) == "True":
     print("Waiting for debugger to attach...")
     debugpy.wait_for_client()
     print("Debugger attached.")
@@ -26,17 +26,12 @@ import logging
 import re
 import subprocess
 import tempfile
-import tika
 import time
-
-tika.TikaClientOnly = True
-
-from tika import config
+from tika import config, parser
 from home_index_module import run_server
 from functools import cmp_to_key
 from pathlib import Path
 from requests.exceptions import RequestException, ReadTimeout
-from tika import parser
 from urllib3.exceptions import (
     HTTPError,
     ConnectionError,
@@ -908,7 +903,7 @@ def scrape_datetime_from_filepath_rigid(file_path):
         "microsecond",
         "offset",
     ]
-    match = rigid_filepath_datetime_regex_pattern.search(file_path)
+    match = rigid_filepath_datetime_regex_pattern.search(str(file_path))
     if match:
         logging.debug(
             f'rigid datetime found in file path "{match}" "{match.groupdict()}"'
@@ -942,7 +937,7 @@ def scrape_datetime_from_filepath_relaxed(file_path):
     ]
     max_components = -1
     matched_components = {}
-    for match in relaxed_filepath_datetime_regex_pattern.finditer(file_path):
+    for match in relaxed_filepath_datetime_regex_pattern.finditer(str(file_path)):
         logging.debug(
             f'relaxed datetime found in file path "{match}" "{match.groupdict()}"'
         )
@@ -1761,12 +1756,12 @@ def jmespath_search_with_shaped_list(data, list):
 def scrape_with_exiftool(file_path):
     try:
         with exiftool.ExifToolHelper() as et:
-            logging.debug(f"{NAME} exiftool start")
+            logging.debug(f"exiftool start")
             metadata = et.get_metadata(file_path)[0]
-            logging.debug(f"{NAME} exiftool done")
+            logging.debug(f"exiftool done")
             return metadata
     except Exception as e:
-        logging.warning(f"{NAME} exiftool failed: {e}")
+        logging.warning(f"exiftool failed: {e}")
         return None
 
 
@@ -1776,9 +1771,9 @@ def scrape_with_exiftool(file_path):
 
 def scrape_with_ffprobe(file_path):
     try:
-        logging.debug(f"{NAME} ffprobe start")
+        logging.debug(f"ffprobe start")
         metadata = ffmpeg.probe(file_path)
-        logging.debug(f"{NAME} ffprobe done")
+        logging.debug(f"ffprobe done")
         streams_by_type = {}
         for stream in metadata.get("streams", []):
             stream_type = stream.get("codec_type", "unknown")
@@ -1794,7 +1789,7 @@ def scrape_with_ffprobe(file_path):
             if stderr_output
             else "Unknown ffprobe error"
         )
-        logging.warning(f'{NAME} ffprobe failed: "{error_message}"')
+        logging.warning(f'ffprobe failed: "{error_message}"')
         return None
 
 
@@ -1804,7 +1799,7 @@ def scrape_with_ffprobe(file_path):
 
 def scrape_with_libmediainfo(file_path):
     try:
-        logging.debug(f"{NAME} mediainfo start")
+        logging.debug(f"mediainfo start")
         result = subprocess.run(
             ["mediainfo", "--Output=JSON", file_path],
             capture_output=True,
@@ -1812,7 +1807,7 @@ def scrape_with_libmediainfo(file_path):
             check=True,
             timeout=10,
         )
-        logging.debug(f"{NAME} mediainfo done")
+        logging.debug(f"mediainfo done")
         metadata = json.loads(result.stdout)
         media = metadata.get("media", {})
         tracks_by_type = {}
@@ -1825,7 +1820,7 @@ def scrape_with_libmediainfo(file_path):
         metadata["media"] = media
         return metadata
     except Exception as e:
-        logging.warning(f"{NAME} mediainfo failed: {e}")
+        logging.warning(f"mediainfo failed: {e}")
         return None
 
 
@@ -1866,7 +1861,7 @@ def scrape_with_os(file_path):
 
         return scrape
     except Exception as e:
-        logging.warning(f"{NAME} os stat failed: {e}")
+        logging.warning(f"os stat failed: {e}")
         return None
 
 
@@ -1876,18 +1871,18 @@ def scrape_with_os(file_path):
 
 def scrape_with_tika(file_path):
     try:
-        logging.debug(f"{NAME} tika start")
-        parsed = parser.from_file(file_path, requestOptions={"timeout": 60})
-        logging.debug(f"{NAME} tika done")
+        logging.debug(f"tika start")
+        parsed = parser.from_file(str(file_path), requestOptions={"timeout": 60})
+        logging.debug(f"tika done")
         metadata = parsed["metadata"]
         if parsed["content"]:
             metadata["X-TIKA:content"] = parsed["content"]
         return metadata
     except ReadTimeout as e:
-        logging.warning(f"{NAME} tika failed: request timed out")
+        logging.warning(f"tika failed: request timed out")
         return None
     except ReadTimeout as e:
-        logging.warning(f"{NAME} tika failed: request timed out")
+        logging.warning(f"tika failed: request timed out")
         return None
     except (RequestException, HTTPError) as e:
         raise e
@@ -1895,7 +1890,7 @@ def scrape_with_tika(file_path):
         cause = e
         if e.__cause__:
             cause = e.__cause__
-        logging.warning(f"{NAME} tika failed {type(e).__name__}: {cause}")
+        logging.warning(f"tika failed {type(e).__name__}: {cause}")
         return None
 
 
@@ -1927,7 +1922,7 @@ def scrape_file_path(file_path):
                 f'parsed rigid datetime set as "{result["creation_date_rigid"]}"'
             )
     except Exception as e:
-        logging.warning(f"{NAME} file path rigid date time failed: {e}")
+        logging.warning(f"file path rigid date time failed: {e}")
 
     try:
         relaxed_datetime_components = scrape_datetime_from_filepath_relaxed(file_path)
@@ -1946,7 +1941,7 @@ def scrape_file_path(file_path):
                 f'parsed relaxed datetime set as "{result["creation_date_relaxed"]}"'
             )
     except Exception as e:
-        logging.warning(f"{NAME} file path relaxed date time failed: {e}")
+        logging.warning(f"file path relaxed date time failed: {e}")
 
     logging.debug(f'scraped metadata from file path "{result}"')
     return result
@@ -1960,6 +1955,7 @@ def scrape_file_path(file_path):
 def hello():
     return {
         "name": NAME,
+        "version": VERSION,
         "filterable_attributes": ["_geo"]
         + [
             f"{NAME}.{x}"
@@ -2046,7 +2042,7 @@ def run(file_path, document, metadata_dir_path):
 
     document[NAME] = {}
 
-    if desired_fields["latitude"] and desired_fields["longitude"]:
+    if "latitude" in desired_fields and "longitude" in desired_fields:
         # this is how meilisearch likes gps data
         document["_geo"] = {
             "lat": desired_fields["latitude"],
@@ -2061,7 +2057,7 @@ def run(file_path, document, metadata_dir_path):
     with open(version_path, "w") as file:
         logging.debug(f"write {version_path}")
         json.dump(
-            {"version": VERSION, "file_path": file_path},
+            {"version": VERSION, "file_path": str(file_path)},
             file,
             indent=4,
             separators=(", ", ": "),

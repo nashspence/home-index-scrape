@@ -7,7 +7,7 @@
             "command": "bash",
             "args": [
                 "-c",
-                "docker-compose down && docker-compose build home-index && WAIT_FOR_DEBUG_CLIENT=True docker-compose up -d && sleep 3"
+                "docker-compose down && docker-compose build && WAIT_FOR_DEBUGPY_CLIENT=True docker-compose up -d && sleep 3"
             ],
             "problemMatcher": []
         },

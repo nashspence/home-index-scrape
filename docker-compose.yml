@@ -5,14 +5,16 @@ services:
       dockerfile: Dockerfile
     container_name: home-index-scrape
     environment:
-      - TIKA_HOST=http://tika:9998
+      - DEBUG=True
+      - TIKA_SERVER_ENDPOINT=http://tika:9998
+      - TIKA_CLIENT_ONLY=True
       - TZ=America/Los_Angeles
-      - WAIT_FOR_DEBUG_CLIENT
+      - WAIT_FOR_DEBUGPY_CLIENT=True
     ports:
       - '5678:5678' # debugpy
     restart: unless-stopped
     volumes:
-      - ./bind-mounts/test-files:/files
+      - ./bind-mounts/home-index-root:/home-index-root
   meilisearch:
     container_name: meilisearch
     environment:
@@ -29,15 +31,16 @@ services:
     container_name: home-index
     depends_on:
       - meilisearch
-      - home-index-transcribe-module
+      - home-index-scrape
     environment:
       - MODULES=http://home-index-scrape:9000
       - MEILISEARCH_HOST=http://meilisearch:7700
       - TZ=America/Los_Angeles
+      - DEBUG=True
     restart: unless-stopped
     volumes:
-      - ./bind-mounts/home-index:/storage
-      - ./bind-mounts/test-files:/files
+      - ./bind-mounts/home-index-root:/home-index-root
+      - ./bind-mounts/home-index:/home-index
   tika:
     command: [ "--config", "/config/tika-config.xml" ]
     container_name: tika
@@ -49,4 +52,4 @@ services:
     restart: unless-stopped
     volumes:
       - ./bind-mounts/tika:/config
-      - ./bind-mounts/test-files:/files:ro
+      - ./bind-mounts/home-index-root:/home-index-root:ro

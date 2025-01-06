@@ -1,24 +1,28 @@
-FROM python:slim
+FROM python:alpine
 
-ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
 
-RUN apt-get update && apt-get install -y \
+# Install system dependencies
+RUN apk add --no-cache \
     attr \
     exiftool \
     ffmpeg \
     file \
     git \
-    libgomp1 \
-    libmediainfo0v5 \
+    libgomp \
     mediainfo \
     poppler-utils \
-    tzdata \
-    && apt-get clean
+    tzdata
 
+# Set the working directory
 WORKDIR /app
 
+# Copy requirements file and install Python dependencies
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
+# Copy the application source code
 COPY packages/home_index_scrape .
+
+# Set the entrypoint for the container
 ENTRYPOINT ["python3", "/app/main.py"]
