@@ -31,13 +31,7 @@ from tika import config, parser
 from home_index_module import run_server
 from functools import cmp_to_key
 from pathlib import Path
-from requests.exceptions import RequestException, ReadTimeout
-from urllib3.exceptions import (
-    HTTPError,
-    ConnectionError,
-    NewConnectionError,
-    MaxRetryError,
-)
+from requests.exceptions import ReadTimeout
 
 
 # endregion
@@ -209,7 +203,7 @@ def parse_text_field(d, fieldname):
     value, fieldpath = get_first(d, fieldname)
     if value:
         logging.debug(f'"{fieldname}" found at "{fieldpath}"')
-        return {"text": value}
+        return {"text": str(value).strip()}
     return None
 
 
@@ -1754,15 +1748,9 @@ def jmespath_search_with_shaped_list(data, list):
 
 
 def scrape_with_exiftool(file_path):
-    try:
-        with exiftool.ExifToolHelper() as et:
-            logging.debug(f"exiftool start")
-            metadata = et.get_metadata(file_path)[0]
-            logging.debug(f"exiftool done")
-            return metadata
-    except Exception as e:
-        logging.warning(f"exiftool failed: {e}")
-        return None
+    with exiftool.ExifToolHelper() as et:
+        metadata = et.get_metadata(file_path)[0]
+        return metadata
 
 
 # endregion
@@ -1770,27 +1758,15 @@ def scrape_with_exiftool(file_path):
 
 
 def scrape_with_ffprobe(file_path):
-    try:
-        logging.debug(f"ffprobe start")
-        metadata = ffmpeg.probe(file_path)
-        logging.debug(f"ffprobe done")
-        streams_by_type = {}
-        for stream in metadata.get("streams", []):
-            stream_type = stream.get("codec_type", "unknown")
-            if stream_type not in streams_by_type:
-                streams_by_type[stream_type] = []
-            streams_by_type[stream_type].append(stream)
-        metadata["streams"] = streams_by_type
-        return metadata
-    except Exception as e:
-        stderr_output = e.stderr.decode("utf-8") if e.stderr else ""
-        error_message = (
-            stderr_output.strip().split("\n")[-1]
-            if stderr_output
-            else "Unknown ffprobe error"
-        )
-        logging.warning(f'ffprobe failed: "{error_message}"')
-        return None
+    metadata = ffmpeg.probe(file_path)
+    streams_by_type = {}
+    for stream in metadata.get("streams", []):
+        stream_type = stream.get("codec_type", "unknown")
+        if stream_type not in streams_by_type:
+            streams_by_type[stream_type] = []
+        streams_by_type[stream_type].append(stream)
+    metadata["streams"] = streams_by_type
+    return metadata
 
 
 # endregion
@@ -1798,30 +1774,24 @@ def scrape_with_ffprobe(file_path):
 
 
 def scrape_with_libmediainfo(file_path):
-    try:
-        logging.debug(f"mediainfo start")
-        result = subprocess.run(
-            ["mediainfo", "--Output=JSON", file_path],
-            capture_output=True,
-            text=True,
-            check=True,
-            timeout=10,
-        )
-        logging.debug(f"mediainfo done")
-        metadata = json.loads(result.stdout)
-        media = metadata.get("media", {})
-        tracks_by_type = {}
-        for track in media.get("track", []):
-            track_type = track.get("@type", "unknown")
-            if track_type not in tracks_by_type:
-                tracks_by_type[track_type] = []
-            tracks_by_type[track_type].append(track)
-        media["track"] = tracks_by_type
-        metadata["media"] = media
-        return metadata
-    except Exception as e:
-        logging.warning(f"mediainfo failed: {e}")
-        return None
+    result = subprocess.run(
+        ["mediainfo", "--Output=JSON", file_path],
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=10,
+    )
+    metadata = json.loads(result.stdout)
+    media = metadata.get("media", {})
+    tracks_by_type = {}
+    for track in media.get("track", []):
+        track_type = track.get("@type", "unknown")
+        if track_type not in tracks_by_type:
+            tracks_by_type[track_type] = []
+        tracks_by_type[track_type].append(track)
+    media["track"] = tracks_by_type
+    metadata["media"] = media
+    return metadata
 
 
 # endregion
@@ -1829,69 +1799,56 @@ def scrape_with_libmediainfo(file_path):
 
 
 def scrape_with_os(file_path):
+    path = Path(file_path)
+    stat_info = path.stat()
+
+    scrape = {
+        "atime": stat_info.st_atime,
+        "ctime": stat_info.st_ctime,
+        "dev": stat_info.st_dev,
+        "gid": stat_info.st_gid,
+        "ino": stat_info.st_ino,
+        "mode": stat_info.st_mode,
+        "mtime": stat_info.st_mtime,
+        "nlink": stat_info.st_nlink,
+        "size": stat_info.st_size,
+        "uid": stat_info.st_uid,
+    }
+
     try:
-        path = Path(file_path)
-        stat_info = path.stat()
-
-        scrape = {
-            "atime": stat_info.st_atime,
-            "ctime": stat_info.st_ctime,
-            "dev": stat_info.st_dev,
-            "gid": stat_info.st_gid,
-            "ino": stat_info.st_ino,
-            "mode": stat_info.st_mode,
-            "mtime": stat_info.st_mtime,
-            "nlink": stat_info.st_nlink,
-            "size": stat_info.st_size,
-            "uid": stat_info.st_uid,
-        }
-
-        try:
-            if XATTR_SUPPORTED:
-                for attr_name in os.listxattr(file_path):
-                    try:
-                        data = os.getxattr(file_path, attr_name)
-                        scrape[f"xattr.{attr_name}"] = data.decode(
-                            "utf-8", errors="ignore"
-                        )
-                    except Exception as e:
-                        logging.exception(f"Failed to read xattr {attr_name}")
-        except Exception as e:
-            logging.exception(f"Failed to read xattrs")
-
-        return scrape
+        if XATTR_SUPPORTED:
+            for attr_name in os.listxattr(file_path):
+                try:
+                    data = os.getxattr(file_path, attr_name)
+                    scrape[f"xattr.{attr_name}"] = data.decode("utf-8", errors="ignore")
+                except Exception as e:
+                    logging.exception(f"Failed to read xattr {attr_name}")
     except Exception as e:
-        logging.warning(f"os stat failed: {e}")
-        return None
+        logging.exception(f"Failed to read xattrs")
+
+    return scrape
 
 
 # endregion
 # region "tika"
 
 
-def scrape_with_tika(file_path):
-    try:
-        logging.debug(f"tika start")
-        parsed = parser.from_file(str(file_path), requestOptions={"timeout": 60})
-        logging.debug(f"tika done")
-        metadata = parsed["metadata"]
-        if parsed["content"]:
-            metadata["X-TIKA:content"] = parsed["content"]
-        return metadata
-    except ReadTimeout as e:
-        logging.warning(f"tika failed: request timed out")
-        return None
-    except ReadTimeout as e:
-        logging.warning(f"tika failed: request timed out")
-        return None
-    except (RequestException, HTTPError) as e:
-        raise e
-    except Exception as e:
-        cause = e
-        if e.__cause__:
-            cause = e.__cause__
-        logging.warning(f"tika failed {type(e).__name__}: {cause}")
-        return None
+def scrape_with_tika(file_path, max_retries=5, retry_delay=1):
+    retries = 0
+    while retries <= max_retries:
+        try:
+            parsed = parser.from_file(str(file_path), requestOptions={"timeout": 60})
+            metadata = parsed["metadata"]
+            if parsed["content"]:
+                metadata["X-TIKA:content"] = str(parsed["content"]).strip()
+            return metadata
+        except ReadTimeout as e:
+            raise e
+        except Exception as e:
+            retries += 1
+            if retries > max_retries:
+                raise e
+            time.sleep(retry_delay * retries)
 
 
 # endregion
@@ -1899,7 +1856,6 @@ def scrape_with_tika(file_path):
 
 
 def scrape_file_path(file_path):
-    logging.debug("scrape file path")
     result = {}
 
     try:
@@ -1907,7 +1863,6 @@ def scrape_file_path(file_path):
             file_path
         )
         if rigid_datetime_components:
-            logging.debug(f'found rigid datetime set "{rigid_datetime_components}"')
             timestamp, highest_precision, offset_seconds, is_offset_real = (
                 parse_timestamp(rigid_datetime_components)
             )
@@ -1918,16 +1873,12 @@ def scrape_file_path(file_path):
                 "is_offset_real": is_offset_real,
                 "type": rigid_type,
             }
-            logging.debug(
-                f'parsed rigid datetime set as "{result["creation_date_rigid"]}"'
-            )
     except Exception as e:
         logging.warning(f"file path rigid date time failed: {e}")
 
     try:
         relaxed_datetime_components = scrape_datetime_from_filepath_relaxed(file_path)
         if relaxed_datetime_components:
-            logging.debug(f'found relaxed datetime set "{relaxed_datetime_components}"')
             timestamp, highest_precision, offset_seconds, is_offset_real = (
                 parse_timestamp(relaxed_datetime_components)
             )
@@ -1937,13 +1888,9 @@ def scrape_file_path(file_path):
                 "utc_offset_seconds": offset_seconds,
                 "is_offset_real": is_offset_real,
             }
-            logging.debug(
-                f'parsed relaxed datetime set as "{result["creation_date_relaxed"]}"'
-            )
     except Exception as e:
         logging.warning(f"file path relaxed date time failed: {e}")
 
-    logging.debug(f'scraped metadata from file path "{result}"')
     return result
 
 
@@ -2015,30 +1962,81 @@ def check(file_path, document, metadata_dir_path):
 
 
 def run(file_path, document, metadata_dir_path):
+    logging.info(f"start {file_path}")
+
     version_path = metadata_dir_path / "version.json"
     metadata_path = metadata_dir_path / "metadata.json"
     txt_path = metadata_dir_path / "text.txt"
 
     metadata = {}
-    metadata["fs"] = scrape_with_os(file_path)
-    metadata["filepath"] = scrape_file_path(file_path)
 
+    stat_exception = None
+    try:
+        metadata["fs"] = scrape_with_os(file_path)
+    except Exception as e:
+        logging.exception("os stat failed")
+        stat_exception = e
+
+    fp_exception = None
+    try:
+        metadata["filepath"] = scrape_file_path(file_path)
+    except Exception as e:
+        logging.exception("parse filepath failed")
+        fp_exception = e
+
+    exiftool_exception = None
     if document["type"] in EXIFTOOL_MIMES:
-        metadata["exiftool"] = scrape_with_exiftool(file_path)
-    if document["type"] in FFPROBE_LIBMEDIA_MIMES:
-        metadata["ffprobe"] = scrape_with_ffprobe(file_path)
-        metadata["libmediainfo"] = scrape_with_libmediainfo(file_path)
-    if document["type"] in TIKA_SUPPORTED_MIMES:
-        metadata["tika"] = scrape_with_tika(file_path)
+        try:
+            metadata["exiftool"] = scrape_with_exiftool(file_path)
+        except Exception as e:
+            logging.exception("exiftool failed")
+            exiftool_exception = e
 
-    if document["type"] in VIDEO_MIME_TYPES:
-        desired_fields = jmespath_search_with_shaped_list(metadata, DESIRED_VIDEO)
-    elif document["type"] in AUDIO_MIME_TYPES:
-        desired_fields = jmespath_search_with_shaped_list(metadata, DESIRED_AUDIO)
-    elif document["type"] in IMAGE_MIME_TYPES:
-        desired_fields = jmespath_search_with_shaped_list(metadata, DESIRED_IMAGE)
-    else:
-        desired_fields = jmespath_search_with_shaped_list(metadata, DESIRED_OTHER)
+    ffprobe_exception = None
+    libmediainfo_exception = None
+    if document["type"] in FFPROBE_LIBMEDIA_MIMES:
+        try:
+            metadata["ffprobe"] = scrape_with_ffprobe(file_path)
+        except Exception as e:
+            logging.exception("ffprobe failed")
+            ffprobe_exception = e
+        try:
+            metadata["libmediainfo"] = scrape_with_libmediainfo(file_path)
+        except Exception as e:
+            logging.exception("libmediainfo failed")
+            libmediainfo_exception = e
+    tika_exception = None
+    if document["type"] in TIKA_SUPPORTED_MIMES:
+        try:
+            metadata["tika"] = scrape_with_tika(file_path)
+        except Exception as e:
+            logging.exception("tika failed")
+            tika_exception = e
+
+    parse_exception = None
+    try:
+        if document["type"] in VIDEO_MIME_TYPES:
+            desired_fields = jmespath_search_with_shaped_list(metadata, DESIRED_VIDEO)
+        elif document["type"] in AUDIO_MIME_TYPES:
+            desired_fields = jmespath_search_with_shaped_list(metadata, DESIRED_AUDIO)
+        elif document["type"] in IMAGE_MIME_TYPES:
+            desired_fields = jmespath_search_with_shaped_list(metadata, DESIRED_IMAGE)
+        else:
+            desired_fields = jmespath_search_with_shaped_list(metadata, DESIRED_OTHER)
+    except Exception as e:
+        logging.exception("parse failed")
+        parse_exception = e
+
+    with open(metadata_path, "w") as file:
+        json.dump(metadata, file, indent=4, separators=(", ", ": "))
+
+    if (
+        "tika" in metadata
+        and metadata["tika"] is not None
+        and "X-TIKA:content" in metadata["tika"]
+    ):
+        with open(txt_path, "w") as file:
+            file.write(metadata["tika"]["X-TIKA:content"])
 
     document[NAME] = {}
 
@@ -2055,27 +2053,24 @@ def run(file_path, document, metadata_dir_path):
         document[NAME][key] = value
 
     with open(version_path, "w") as file:
-        logging.debug(f"write {version_path}")
         json.dump(
-            {"version": VERSION, "file_path": str(file_path)},
+            {
+                "version": VERSION,
+                "file_path": str(file_path),
+                "stat_exception": stat_exception,
+                "fp_exception": fp_exception,
+                "exiftool_exception": exiftool_exception,
+                "ffprobe_exception": ffprobe_exception,
+                "libmediainfo_exception": libmediainfo_exception,
+                "tika_exception": tika_exception,
+                "parse_exception": parse_exception,
+            },
             file,
             indent=4,
             separators=(", ", ": "),
         )
 
-    with open(metadata_path, "w") as file:
-        logging.debug(f"write {metadata_path}")
-        json.dump(metadata, file, indent=4, separators=(", ", ": "))
-
-    if (
-        "tika" in metadata
-        and metadata["tika"] is not None
-        and "X-TIKA:content" in metadata["tika"]
-    ):
-        with open(txt_path, "w") as file:
-            logging.debug(f"write {txt_path}")
-            file.write(metadata["tika"]["X-TIKA:content"])
-
+    logging.info(f"done {file_path}")
     return document
 
 

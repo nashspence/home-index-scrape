@@ -14,7 +14,7 @@ services:
       - '5678:5678' # debugpy
     restart: unless-stopped
     volumes:
-      - ./bind-mounts/home-index-root:/home-index-root
+      - ./bind-mounts/files:/files
   meilisearch:
     container_name: meilisearch
     environment:
@@ -39,7 +39,7 @@ services:
       - DEBUG=True
     restart: unless-stopped
     volumes:
-      - ./bind-mounts/home-index-root:/home-index-root
+      - ./bind-mounts/files:/files
       - ./bind-mounts/home-index:/home-index
   tika:
     command: [ "--config", "/config/tika-config.xml" ]
@@ -52,4 +52,4 @@ services:
     restart: unless-stopped
     volumes:
       - ./bind-mounts/tika:/config
-      - ./bind-mounts/home-index-root:/home-index-root:ro
+      - ./bind-mounts/files:/files:ro
