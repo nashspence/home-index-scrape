@@ -2014,6 +2014,7 @@ def run(file_path, document, metadata_dir_path):
             tika_exception = e
 
     parse_exception = None
+    desired_fields = {}
     try:
         if document["type"] in VIDEO_MIME_TYPES:
             desired_fields = jmespath_search_with_shaped_list(metadata, DESIRED_VIDEO)
@@ -2057,13 +2058,13 @@ def run(file_path, document, metadata_dir_path):
             {
                 "version": VERSION,
                 "file_path": str(file_path),
-                "stat_exception": stat_exception,
-                "fp_exception": fp_exception,
-                "exiftool_exception": exiftool_exception,
-                "ffprobe_exception": ffprobe_exception,
-                "libmediainfo_exception": libmediainfo_exception,
-                "tika_exception": tika_exception,
-                "parse_exception": parse_exception,
+                "stat_exception": str(stat_exception),
+                "fp_exception": str(fp_exception),
+                "exiftool_exception": str(exiftool_exception),
+                "ffprobe_exception": str(ffprobe_exception),
+                "libmediainfo_exception": str(libmediainfo_exception),
+                "tika_exception": str(tika_exception),
+                "parse_exception": str(parse_exception),
             },
             file,
             indent=4,
