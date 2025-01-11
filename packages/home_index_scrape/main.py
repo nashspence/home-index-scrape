@@ -1975,6 +1975,8 @@ def run(file_path, document, metadata_dir_path):
     stat_exception = None
     try:
         metadata["fs"] = scrape_with_os(file_path)
+    except FileNotFoundError as e:
+        raise e
     except Exception as e:
         logging.exception("os stat failed")
         stat_exception = e
@@ -1982,6 +1984,8 @@ def run(file_path, document, metadata_dir_path):
     fp_exception = None
     try:
         metadata["filepath"] = scrape_file_path(file_path)
+    except FileNotFoundError as e:
+        raise e
     except Exception as e:
         logging.exception("parse filepath failed")
         fp_exception = e
@@ -1990,6 +1994,8 @@ def run(file_path, document, metadata_dir_path):
     if document["type"] in EXIFTOOL_MIMES:
         try:
             metadata["exiftool"] = scrape_with_exiftool(file_path)
+        except FileNotFoundError as e:
+            raise e
         except Exception as e:
             logging.exception("exiftool failed")
             exiftool_exception = e
@@ -1999,11 +2005,15 @@ def run(file_path, document, metadata_dir_path):
     if document["type"] in FFPROBE_LIBMEDIA_MIMES:
         try:
             metadata["ffprobe"] = scrape_with_ffprobe(file_path)
+        except FileNotFoundError as e:
+            raise e
         except Exception as e:
             logging.exception("ffprobe failed")
             ffprobe_exception = e
         try:
             metadata["libmediainfo"] = scrape_with_libmediainfo(file_path)
+        except FileNotFoundError as e:
+            raise e
         except Exception as e:
             logging.exception("libmediainfo failed")
             libmediainfo_exception = e
@@ -2011,6 +2021,8 @@ def run(file_path, document, metadata_dir_path):
     if document["type"] in TIKA_SUPPORTED_MIMES:
         try:
             metadata["tika"] = scrape_with_tika(file_path)
+        except FileNotFoundError as e:
+            raise e
         except Exception as e:
             logging.exception("tika failed")
             tika_exception = e
@@ -2026,6 +2038,8 @@ def run(file_path, document, metadata_dir_path):
             desired_fields = jmespath_search_with_shaped_list(metadata, DESIRED_IMAGE)
         else:
             desired_fields = jmespath_search_with_shaped_list(metadata, DESIRED_OTHER)
+    except FileNotFoundError as e:
+        raise e
     except Exception as e:
         logging.exception("parse failed")
         parse_exception = e
