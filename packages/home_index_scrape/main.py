@@ -2069,23 +2069,30 @@ def run(file_path, document, metadata_dir_path):
     for key, value in (desired_fields or {}).items():
         document[NAME][key] = value
 
+    version = {"version": VERSION, "file_path": str(file_path)}
+    if stat_exception:
+        version["exception"] = str(stat_exception)
+        version["stat_exception"] = str(stat_exception)
+    if fp_exception:
+        version["exception"] = str(fp_exception)
+        version["fp_exception"] = str(fp_exception)
+    if exiftool_exception:
+        version["exception"] = str(exiftool_exception)
+        version["exiftool_exception"] = str(exiftool_exception)
+    if ffprobe_exception:
+        version["exception"] = str(ffprobe_exception)
+        version["ffprobe_exception"] = str(ffprobe_exception)
+    if libmediainfo_exception:
+        version["exception"] = str(libmediainfo_exception)
+        version["libmediainfo_exception"] = str(libmediainfo_exception)
+    if tika_exception:
+        version["exception"] = str(tika_exception)
+        version["tika_exception"] = str(tika_exception)
+    if parse_exception:
+        version["exception"] = str(parse_exception)
+        version["parse_exception"] = str(parse_exception)
     with open(version_path, "w") as file:
-        json.dump(
-            {
-                "version": VERSION,
-                "file_path": str(file_path),
-                "stat_exception": str(stat_exception),
-                "fp_exception": str(fp_exception),
-                "exiftool_exception": str(exiftool_exception),
-                "ffprobe_exception": str(ffprobe_exception),
-                "libmediainfo_exception": str(libmediainfo_exception),
-                "tika_exception": str(tika_exception),
-                "parse_exception": str(parse_exception),
-            },
-            file,
-            indent=4,
-            separators=(", ", ": "),
-        )
+        json.dump(version, file, indent=4)
 
     logging.info(f"done {file_path}")
     return document
